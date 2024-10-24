@@ -3,6 +3,7 @@ import boto3
 import botocore
 import json
 import io
+import tempfile
 
 session = boto3.Session(
         aws_access_key_id=st.secrets["AWS_ACCESS_KEY_ID"],
@@ -37,9 +38,9 @@ def get_save_qr_image(payload):
         Payload=payload.read()
     )
     response_body = json.loads(json.loads(response['Payload'].read())['body'])
-
-    s3_client.download_file(response_body['bucket'], response_body['key'], "qr-codes/" + response_body['file_name'])
-    return "qr-codes/" + response_body['file_name']
+    f = tempfile.NamedTemporaryFile(mode='w+b')
+    s3_client.download_fileobj(response_body['bucket'], response_body['key'], f)
+    return response_body['file_name'], f
 
 with st.form("Enter Addresss"):
     address = st.text_input("Address here: ")
@@ -52,13 +53,15 @@ with st.form("Enter Addresss"):
     submit = st.form_submit_button('submit')
 
 if submit:
-    file_name = get_save_qr_image(file_like_payload)
-    st.image(file_name)
-    # save file locally
-    with open(file_name, "rb") as file:
-        btn = st.download_button(
-            label="Download image",
-            data=file,
-            file_name=file_name,
-            mime="image/png",
-        )
+    file_name, fp = get_save_qr_image(file_like_payload)
+    fp.seek(0)
+
+    st.image(fp.read())
+    fp.seek(0)
+
+    btn = st.download_button(
+        label="Download image",
+        data=fp.read(),
+        file_name=file_name,
+        mime="image/png",
+    )
