@@ -27,3 +27,4 @@ out/
 qr-codes/*
 !noris_pta.png
 env/
+.streamlit/
